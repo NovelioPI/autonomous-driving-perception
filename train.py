@@ -151,27 +151,34 @@ def fit(args):
             logging.error(f"=====> Pretrained model file not found: {pretrained_path}")
     
     # Training loop
-    train_loss_list = []
-    for epoch in range(args.max_epochs):
-        train_loss = train(train_loader, model, criterion, optimizer, scheduler, writer, epoch)
-        train_loss_list.append(train_loss)
-        
-        if (epoch + 1) % args.val_interval == 0:
-            val_loss = validate(args, val_loader, model, criterion, writer, epoch)
-            logging.info(f"Epoch [{epoch + 1}/{args.max_epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
-        
-        # Save final model
-        final_model_path = log_dir / f"{args.model}_final.pth"
-        torch.save({
-            'model': model.state_dict(),
-            'optimizer': optimizer.state_dict(),
-            'scheduler': scheduler.state_dict(),
-            'epoch': args.max_epochs,
-            'train_loss': train_loss_list
-        }, final_model_path)
-        logging.info(f"=====> Final model saved to {final_model_path}")
-    
-    writer.close()
+    try:
+        train_loss_list = []
+        for epoch in range(args.max_epochs):
+            train_loss = train(train_loader, model, criterion, optimizer, scheduler, writer, epoch)
+            train_loss_list.append(train_loss)
+            
+            if (epoch + 1) % args.val_interval == 0:
+                val_loss = validate(args, val_loader, model, criterion, writer, epoch)
+                logging.info(f"Epoch [{epoch + 1}/{args.max_epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
+            
+            # Save final model
+            final_model_path = log_dir / f"{args.model}_final.pth"
+            torch.save({
+                'model': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'scheduler': scheduler.state_dict(),
+                'epoch': args.max_epochs,
+                'train_loss': train_loss_list
+            }, final_model_path)
+            logging.info(f"=====> Final model saved to {final_model_path}")
+    except KeyboardInterrupt:
+        logging.info("Training interrupted by user.")
+    except Exception as e:
+        logging.error(f"An error occurred during training: {e}")
+    finally:
+        # Close TensorBoard writer
+        logging.info("=====> Closing TensorBoard writer")
+        writer.close()
     
 
 if __name__ == "__main__":
