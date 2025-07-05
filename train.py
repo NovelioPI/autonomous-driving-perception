@@ -88,7 +88,7 @@ def fit(args):
     # Set up dataset
     data_stat, train_loader, val_loader = build_dataset_train(
         args.dataset, input_size, args.batch_size, args.num_workers, 
-        args.scale, args.mirror, root=args.root
+        args.scale, args.mirror
     )
     weight = torch.from_numpy(data_stat['class_weights'])
     logging.info(f"=====> Dataset: {args.dataset}")
@@ -192,7 +192,6 @@ if __name__ == "__main__":
     
     args = parser.parse_args()
     args.max_iter = args.max_epochs * args.batch_size
-    args.root = '/media/esr/ssd0'
     
     logging.basicConfig(level=logging.INFO)
     

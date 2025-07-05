@@ -9,7 +9,7 @@ import logging
 
 class CityscapesDataset(data.Dataset):
     def __init__(
-        self, root: Path, split: str = 'train', stat: dict = None, crop_size: tuple = (512, 1024),
+        self, root: Path='./dataset', split: str = 'train', stat: dict = None, crop_size: tuple = (512, 1024),
         scale: bool = False, mirror: bool = False
     ):
         self.root = Path(root)
@@ -100,7 +100,7 @@ class CityscapesInform(data.Dataset):
     The class is employed to tackle class imbalance.
     Computes simple average of means and stds across images.
     """
-    def __init__(self, root: Path, norm_val: float = 1.10):
+    def __init__(self, root: Path='./dataset', norm_val: float = 1.10):
         self.root = Path(root)
         self.images = sorted((self.root / 'cityscapes' / 'leftImg8bit' / 'train').glob('**/*.png'))
         self.labels = sorted((self.root / 'cityscapes' / 'gtFine' / 'train').glob('**/*_labelTrainIds.png'))
@@ -184,8 +184,7 @@ class CityscapesInform(data.Dataset):
 
 if __name__ == "__main__":
     # Example usage
-    root = '/media/esr/ssd0'
-    inform = CityscapesInform(root)
+    inform = CityscapesInform()
     stats = inform.read_and_save_statistics('./dataset/inform/cityscapes_inform.pkl')
     print("Statistics:", stats)
     
