@@ -12,31 +12,44 @@ import timeit
 from utils.utils import setup_seed, init_weight
 from utils.loss import ProbOhemCrossEntropy2d
 from utils.lr_scheduler import WarmupPolyLR
+from utils.metric import ConfusionMatrix
 from model.builder import build_model
 from dataset.builder import build_dataset_train
 
 
-def validate(args, val_loader, model, criterion, writer, epoch):
+def validate(val_loader, model, criterion, writer, epoch):
     """
     Validation loop to evaluate the model on the validation dataset.
     """
     model.eval()
     total_loss = 0.0
+    metric = ConfusionMatrix(num_classes=val_loader.dataset.num_classes)
     with torch.no_grad():
-        for i, (images, target, _, _) in tqdm(enumerate(val_loader), total=len(val_loader), desc="Validation"):
+        for i, (images, targets, _, _) in tqdm(enumerate(val_loader), total=len(val_loader), desc="Validation"):
             images = images.cuda(non_blocking=True)
-            target = target.cuda(non_blocking=True)
+            targets = targets.cuda(non_blocking=True)
 
             outputs = model(images)
-            loss = criterion(outputs, target)
+            loss = criterion(outputs, targets)
 
             total_loss += loss.item()
+            
+            targets = targets.cpu()
+            pred = outputs.argmax(dim=1).cpu()
+            metric.add_batch(targets, pred)
 
     average_loss = total_loss / len(val_loader)
     logging.info(f"Validation Epoch [{epoch}], Average Loss: {average_loss:.4f}")
     writer.add_scalar('val/loss', average_loss, epoch)
     
+    mean_iou, per_class_iou, _ = metric.jaccard()
+    logging.info(f"Validation Epoch [{epoch}], Mean IoU: {mean_iou:.4f}")
+    writer.add_scalar('val/mean_iou', mean_iou, epoch)
+    for i, iou in enumerate(per_class_iou):
+        writer.add_scalar(f'val/class_{i}_iou', iou, epoch)
+    
     return average_loss
+
 
 
 def train(train_loader, model, criterion, optimizer, scheduler, writer, epoch):
@@ -45,6 +58,7 @@ def train(train_loader, model, criterion, optimizer, scheduler, writer, epoch):
     """
     model.train()
     total_loss = 0.0
+    metric = ConfusionMatrix(num_classes=train_loader.dataset.num_classes)
     for i, (images, targets, _, _) in tqdm(enumerate(train_loader), total=len(train_loader), desc="Training"):
         images = images.cuda(non_blocking=True)
         targets = targets.cuda(non_blocking=True)
@@ -57,10 +71,20 @@ def train(train_loader, model, criterion, optimizer, scheduler, writer, epoch):
         scheduler.step()
 
         total_loss += loss.item()
+        
+        targets = targets.cpu()
+        pred = outputs.argmax(dim=1).cpu()
+        metric.add_batch(targets, pred)
 
     average_loss = total_loss / len(train_loader)
     logging.info(f"Epoch [{epoch}], Average Loss: {average_loss:.4f}")
     writer.add_scalar('train/loss', average_loss, epoch)
+    
+    mean_iou, per_class_iou, _ = metric.jaccard()
+    logging.info(f"Epoch [{epoch}], Mean IoU: {mean_iou:.4f}")
+    writer.add_scalar('train/mean_iou', mean_iou, epoch)
+    for i, iou in enumerate(per_class_iou):
+        writer.add_scalar(f'train/class_{i}_iou', iou, epoch)
     
     return average_loss
     
