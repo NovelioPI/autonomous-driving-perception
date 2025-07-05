@@ -72,6 +72,7 @@ def fit(args):
     logging.info(f"=====> Input size: {input_size}")
     
     # Set up device
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     device_count = torch.cuda.device_count()
     logging.info(f"=====> Found {device_count} GPU(s) available.")
     if device_count > 0:
@@ -99,22 +100,22 @@ def fit(args):
     cudnn.enabled = True
     logging.info("=====> Building Network")
     model = build_model(args.model, data_stat['num_classes'])
+    model = model.to(device)
     init_weight(model, nn.init.kaiming_normal_, nn.BatchNorm2d, 
                 bn_eps=1e-3, bn_momentum=0.1, mode='fan_in')
     total_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
     logging.info(f"=====> Total parameters: {total_params / 1e6:.2f}M")
+    if device_count > 1:
+        model = nn.DataParallel(model)
+    else:
+        model = model.cuda()
     
     # Set up loss function
     div = device_count if device_count > 0 else 1
     min_kept = int(args.batch_size // div * h * w * 16)
     criterion = ProbOhemCrossEntropy2d(weight=weight, ignore_index=data_stat['ignore_index'], 
                                        thresh=0.7, min_kept=min_kept)
-    if device_count > 0:
-        criterion = criterion.cuda()
-        if device_count > 1:
-            model = nn.DataParallel(model)
-        else:
-            model = model.cuda()
+    criterion = criterion.to(device)
     
     # Set up optimizer and learning rate scheduler
     optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), 
