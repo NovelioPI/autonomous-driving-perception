@@ -162,7 +162,13 @@ def fit(args):
                 logging.info(f"Epoch [{epoch + 1}/{args.max_epochs}], Train Loss: {train_loss:.4f}, Val Loss: {val_loss:.4f}")
             
             # Save final model
-            final_model_path = log_dir / f"{args.model}_final.pth"
+            last_model_path = log_dir / f"model_{epoch - 1}.pth"
+            try:
+                last_model_path.unlink()
+            except FileNotFoundError:
+                pass
+            
+            final_model_path = log_dir / f"model_{epoch}.pth"
             torch.save({
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
